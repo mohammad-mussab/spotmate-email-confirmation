@@ -107,7 +107,6 @@
             color: #6b7280;
             font-size: 14px;
         }
-        /* Form styles */
         .form-group {
             margin-bottom: 16px;
             text-align: left;
@@ -144,18 +143,10 @@
             border-radius: 8px;
             margin-bottom: 16px;
             font-size: 14px;
-        }
-        .success-message {
-            background: #10b98120;
-            border: 1px solid #10b981;
-            color: #10b981;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-        .hidden {
             display: none;
+        }
+        .error-message.show {
+            display: block;
         }
         .password-requirements {
             color: #6b7280;
@@ -177,14 +168,20 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <img src="logo.png" alt="Spotmate" class="logo-img">
+        <img src="icon.png" alt="Spotmate" class="logo-img">
 
         <!-- Email Confirmed View -->
-        <div id="email-confirmed" class="hidden">
+        <div id="email-confirmed" class="view">
             <div class="icon-circle success">
                 <svg viewBox="0 0 24 24" fill="none">
                     <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>
@@ -197,7 +194,7 @@
         </div>
 
         <!-- Password Reset View -->
-        <div id="password-reset" class="hidden">
+        <div id="password-reset" class="view">
             <div class="icon-circle reset">
                 <svg viewBox="0 0 24 24" fill="none">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -207,9 +204,9 @@
             <h1>Reset Password</h1>
             <p>Enter your new password below.</p>
 
-            <div id="reset-error" class="error-message hidden"></div>
+            <div id="reset-error" class="error-message"></div>
 
-            <form id="reset-form" onsubmit="handleResetPassword(event)">
+            <form id="reset-form">
                 <div class="form-group">
                     <label for="password">New Password</label>
                     <input type="password" id="password" placeholder="Enter new password" required minlength="6">
@@ -225,7 +222,7 @@
         </div>
 
         <!-- Password Reset Success View -->
-        <div id="password-success" class="hidden">
+        <div id="password-success" class="view">
             <div class="icon-circle success">
                 <svg viewBox="0 0 24 24" fill="none">
                     <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/>
@@ -236,43 +233,44 @@
             <button class="button" onclick="openApp()">Open Spotmate App</button>
             <div class="footer">You can close this page now</div>
         </div>
-
-        <!-- Loading View -->
-        <div id="loading" class="hidden">
-            <p>Loading...</p>
-        </div>
     </div>
 
     <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 
     <script>
         // Your Supabase credentials
-        const SUPABASE_URL = 'https://wfwwbwpspfibrvygrmjt.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmd3did3BzcGZpYnJ2eWdybWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4ODQ3MjAsImV4cCI6MjA4MzQ2MDcyMH0.JIyEqC4itoNvdmqQyvPQ2aiZpHewopkxs7wd7-7cdRA';
+        var SUPABASE_URL = 'https://wfwwbwpspfibrvygrmjt.supabase.co';
+        var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indmd3did3BzcGZpYnJ2eWdybWp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc4ODQ3MjAsImV4cCI6MjA4MzQ2MDcyMH0.JIyEqC4itoNvdmqQyvPQ2aiZpHewopkxs7wd7-7cdRA';
 
-        // Initialize Supabase client
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        var supabaseClient = null;
+        var accessToken = null;
+        var refreshToken = null;
 
         // Parse URL hash parameters
         function getHashParams() {
-            const hash = window.location.hash.substring(1);
-            const params = {};
-            hash.split('&').forEach(part => {
-                const [key, value] = part.split('=');
-                if (key && value) {
-                    params[key] = decodeURIComponent(value);
+            var hash = window.location.hash.substring(1);
+            var params = {};
+            var parts = hash.split('&');
+            for (var i = 0; i < parts.length; i++) {
+                var pair = parts[i].split('=');
+                if (pair[0] && pair[1]) {
+                    params[pair[0]] = decodeURIComponent(pair[1]);
                 }
-            });
+            }
             return params;
         }
 
         // Show a specific view
         function showView(viewId) {
-            document.querySelectorAll('.container > div').forEach(div => {
-                div.classList.add('hidden');
-            });
-            document.getElementById(viewId).classList.remove('hidden');
+            var views = document.querySelectorAll('.view');
+            for (var i = 0; i < views.length; i++) {
+                views[i].classList.remove('active');
+            }
+            var targetView = document.getElementById(viewId);
+            if (targetView) {
+                targetView.classList.add('active');
+            }
 
             // Update page title
             if (viewId === 'password-reset') {
@@ -282,57 +280,27 @@
             }
         }
 
-        // Initialize page based on URL parameters
-        async function init() {
-            const params = getHashParams();
-
-            // Check if this is a password recovery
-            if (params.type === 'recovery' && params.access_token) {
-                // Set the session with the recovery token
-                try {
-                    const { data, error } = await supabase.auth.setSession({
-                        access_token: params.access_token,
-                        refresh_token: params.refresh_token || ''
-                    });
-
-                    if (error) {
-                        console.error('Session error:', error);
-                        showView('password-reset');
-                        showError('Invalid or expired reset link. Please request a new one.');
-                        return;
-                    }
-
-                    showView('password-reset');
-                } catch (err) {
-                    console.error('Error setting session:', err);
-                    showView('password-reset');
-                }
-            } else {
-                // Default to email confirmed view
-                showView('email-confirmed');
-            }
-        }
-
         // Show error message
         function showError(message) {
-            const errorDiv = document.getElementById('reset-error');
+            var errorDiv = document.getElementById('reset-error');
             errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
+            errorDiv.classList.add('show');
         }
 
         // Hide error message
         function hideError() {
-            document.getElementById('reset-error').classList.add('hidden');
+            var errorDiv = document.getElementById('reset-error');
+            errorDiv.classList.remove('show');
         }
 
         // Handle password reset form submission
-        async function handleResetPassword(event) {
+        function handleResetPassword(event) {
             event.preventDefault();
             hideError();
 
-            const password = document.getElementById('password').value;
-            const confirmPassword = document.getElementById('confirm-password').value;
-            const button = document.getElementById('reset-button');
+            var password = document.getElementById('password').value;
+            var confirmPassword = document.getElementById('confirm-password').value;
+            var button = document.getElementById('reset-button');
 
             // Validate passwords match
             if (password !== confirmPassword) {
@@ -350,24 +318,25 @@
             button.disabled = true;
             button.innerHTML = '<span class="spinner"></span>Updating...';
 
-            try {
-                const { data, error } = await supabase.auth.updateUser({
-                    password: password
-                });
-
-                if (error) {
-                    showError(error.message || 'Failed to reset password. Please try again.');
-                    button.disabled = false;
-                    button.textContent = 'Reset Password';
-                    return;
-                }
-
-                // Success - show success view
-                showView('password-success');
-
-            } catch (err) {
-                console.error('Reset error:', err);
-                showError('An unexpected error occurred. Please try again.');
+            // Update password using Supabase
+            if (supabaseClient) {
+                supabaseClient.auth.updateUser({ password: password })
+                    .then(function(response) {
+                        if (response.error) {
+                            showError(response.error.message || 'Failed to reset password. Please try again.');
+                            button.disabled = false;
+                            button.textContent = 'Reset Password';
+                        } else {
+                            showView('password-success');
+                        }
+                    })
+                    .catch(function(err) {
+                        showError('An unexpected error occurred. Please try again.');
+                        button.disabled = false;
+                        button.textContent = 'Reset Password';
+                    });
+            } else {
+                showError('Unable to connect. Please try again later.');
                 button.disabled = false;
                 button.textContent = 'Reset Password';
             }
@@ -375,17 +344,57 @@
 
         // Open the Spotmate app
         function openApp() {
-            // Try deep link first
             window.location.href = 'spotmate://signin';
-
-            // Fallback message after a short delay
-            setTimeout(() => {
+            setTimeout(function() {
                 alert('Please open the Spotmate app and sign in!');
             }, 1000);
         }
 
-        // Initialize on page load
-        init();
+        // Initialize page
+        function init() {
+            var params = getHashParams();
+
+            // Store tokens
+            accessToken = params.access_token;
+            refreshToken = params.refresh_token;
+
+            // Check if this is a password recovery
+            if (params.type === 'recovery' && accessToken) {
+                showView('password-reset');
+
+                // Initialize Supabase and set session
+                if (typeof supabase !== 'undefined') {
+                    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    supabaseClient.auth.setSession({
+                        access_token: accessToken,
+                        refresh_token: refreshToken || ''
+                    }).then(function(result) {
+                        if (result.error) {
+                            console.error('Session error:', result.error);
+                            showError('Invalid or expired reset link. Please request a new one.');
+                        }
+                    }).catch(function(err) {
+                        console.error('Session error:', err);
+                    });
+                }
+            } else {
+                // Default to email confirmed view
+                showView('email-confirmed');
+            }
+
+            // Setup form handler
+            var form = document.getElementById('reset-form');
+            if (form) {
+                form.onsubmit = handleResetPassword;
+            }
+        }
+
+        // Run init when page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     </script>
 </body>
 </html>
